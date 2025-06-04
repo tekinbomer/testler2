@@ -20,33 +20,38 @@ def create_order():
     if not customer or not address or not product:
         return jsonify({'error': 'Eksik alanlar var', 'details': data}), 400
 
-    conn = get_db()
-    cursor = conn.cursor()
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
 
-    sql = """
-        INSERT INTO orders (musteri, adres, urun, status)
-        VALUES (%s, %s, %s, %s)
-        RETURNING id
-    """
-    values = (customer, address, product, 'new')
-    cursor.execute(sql, values)
-    result = cursor.fetchone()
-    conn.commit()
-    cursor.close()
-    conn.close()
+        sql = """
+            INSERT INTO orders (musteri, adres, urun, status)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id
+        """
+        values = (customer, address, product, 'new')
+        cursor.execute(sql, values)
+        result = cursor.fetchone()
 
-    if not result:
-        return jsonify({'error': 'Kayıt alınamadı'}), 500
+        conn.commit()
+        cursor.close()
+        conn.close()
 
-    order_id = result[0]
+        if result and len(result) > 0:
+            order_id = result[0]
+            return jsonify({
+                'id': order_id,
+                'customer': customer,
+                'address': address,
+                'product': product,
+                'status': 'new'
+            }), 201
+        else:
+            return jsonify({'error': 'Kayıt alınamadı', 'details': str(result)}), 500
 
-    return jsonify({
-        'id': order_id,
-        'customer': customer,
-        'address': address,
-        'product': product,
-        'status': 'new'
-    }), 201
+    except Exception as e:
+        return jsonify({'error': 'Veritabanı hatası', 'details': str(e)}), 500
+
 
 # Belirli siparişi getir
 @app.route('/orders/<int:order_id>', methods=['GET'])
