@@ -17,11 +17,12 @@ def create_order():
         conn = get_db()
         cursor = conn.cursor()
 
-        sql = """
-            INSERT INTO orders (musteri, adres, urun, status)
-            VALUES (%s, %s, %s, %s)
-            RETURNING id
-        """
+   sql = """
+    INSERT INTO orders (customer, address, product, status)
+    VALUES (%s, %s, %s, %s)
+    RETURNING id
+"""
+
         values = (
             data.get('customer'),
             data.get('address'),
