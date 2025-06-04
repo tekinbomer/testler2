@@ -8,7 +8,6 @@ def get_db():
         database=os.getenv("PG_NAME"),
         user=os.getenv("PG_USER"),
         password=os.getenv("PG_PASS"),
-        port=int(os.getenv("PG_PORT")),  # <-- düzeltme burada
+        port=os.getenv("PG_PORT"),
         cursor_factory=RealDictCursor
-    )
-
+    ) 
