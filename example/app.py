@@ -7,6 +7,16 @@ app = Flask(__name__)
 CORS(app)
 
 # Sipariş oluştur
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from db import get_db
+import psycopg2.extras
+import traceback  # ← bu satırı ekle
+
+app = Flask(__name__)
+CORS(app)
+
+# Sipariş oluştur
 @app.route('/orders', methods=['POST'])
 def create_order():
     try:
@@ -22,7 +32,6 @@ def create_order():
             VALUES (%s, %s, %s, %s)
             RETURNING id
         """
-
         values = (
             data.get('customer'),
             data.get('address'),
@@ -49,6 +58,7 @@ def create_order():
         }), 201
 
     except Exception as e:
+        print("HATA:", traceback.format_exc())  # ← logu detaylı bas
         return jsonify({'error': 'Veritabanı hatası', 'details': str(e)}), 500
 
 
