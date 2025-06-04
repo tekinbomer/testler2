@@ -1,10 +1,13 @@
-import mysql.connector
 import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 def get_db():
-    return mysql.connector.connect(
-        host=os.getenv("DB_HOST"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASS"),
-        database=os.getenv("DB_NAME")
+    return psycopg2.connect(
+        host=os.getenv("PG_HOST"),
+        database=os.getenv("PG_NAME"),
+        user=os.getenv("PG_USER"),
+        password=os.getenv("PG_PASS"),
+        port=os.getenv("PG_PORT"),
+        cursor_factory=RealDictCursor
     )
