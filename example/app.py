@@ -47,7 +47,7 @@ def get_order(order_id):
     conn = get_db()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-    cursor.execute("SELECT * FROM siparisler WHERE id = %s", (order_id,))
+    cursor.execute("SELECT * FROM orders  WHERE id = %s", (order_id,))
     row = cursor.fetchone()
     cursor.close()
     conn.close()
@@ -67,7 +67,7 @@ def update_status(order_id):
 
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("UPDATE siparisler SET status = %s WHERE id = %s", (new_status, order_id))
+    cursor.execute("UPDATE orders  SET status = %s WHERE id = %s", (new_status, order_id))
     conn.commit()
     cursor.close()
     conn.close()
@@ -79,7 +79,7 @@ def update_status(order_id):
 def list_orders():
     conn = get_db()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    cursor.execute("SELECT * FROM siparisler ORDER BY id DESC")
+    cursor.execute("SELECT * FROM orders  ORDER BY id DESC")
     rows = cursor.fetchall()
     cursor.close()
     conn.close()
