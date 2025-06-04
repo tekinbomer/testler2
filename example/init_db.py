@@ -1,23 +1,23 @@
+import psycopg2
 from db import get_db
-import psycopg2.extras
 
-def create_orders_table():
-    conn = get_db()
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS orders (
-            id SERIAL PRIMARY KEY,
-            musteri VARCHAR(255),
-            adres TEXT,
-            urun VARCHAR(255),
-            status VARCHAR(50) DEFAULT 'new',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-    conn.commit()
-    cursor.close()
-    conn.close()
+conn = get_db()
+cursor = conn.cursor()
 
-if __name__ == "__main__":
-    create_orders_table()
-    print("✅ orders tablosu başarıyla oluşturuldu.")
+cursor.execute("DROP TABLE IF EXISTS orders")
+
+cursor.execute("""
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    musteri TEXT NOT NULL,
+    adres TEXT NOT NULL,
+    urun TEXT NOT NULL,
+    status TEXT DEFAULT 'new'
+)
+""")
+
+conn.commit()
+cursor.close()
+conn.close()
+
+print("✅ orders tablosu sıfırlandı ve yeniden oluşturuldu.")
