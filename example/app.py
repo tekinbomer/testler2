@@ -17,11 +17,11 @@ def create_order():
         conn = get_db()
         cursor = conn.cursor()
 
-   sql = """
-    INSERT INTO orders (customer, address, product, status)
-    VALUES (%s, %s, %s, %s)
-    RETURNING id
-"""
+        sql = """
+            INSERT INTO orders (customer, address, product, status)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id
+        """
 
         values = (
             data.get('customer'),
@@ -50,6 +50,7 @@ def create_order():
 
     except Exception as e:
         return jsonify({'error': 'Veritabanı hatası', 'details': str(e)}), 500
+
 
 # Siparişi getir
 @app.route('/orders/<int:order_id>', methods=['GET'])
