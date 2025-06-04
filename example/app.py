@@ -17,16 +17,16 @@ def create_order():
     cursor = conn.cursor()
 
     sql = """
-        INSERT INTO orders  (musteri, adres, urun, status)
+        INSERT INTO orders (musteri, adres, urun, status)
         VALUES (%s, %s, %s, %s)
         RETURNING id
     """
-values = (
-    data.get('customer'),
-    data.get('address'),
-    data.get('product'),
-    'new'
-)
+    values = (
+        data.get('müşteri'),
+        data.get('adres'),
+        data.get('ürün'),
+        'new'
+    )
 
     cursor.execute(sql, values)
     order_id = cursor.fetchone()[0]
@@ -48,7 +48,7 @@ def get_order(order_id):
     conn = get_db()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-    cursor.execute("SELECT * FROM orders  WHERE id = %s", (order_id,))
+    cursor.execute("SELECT * FROM orders WHERE id = %s", (order_id,))
     row = cursor.fetchone()
     cursor.close()
     conn.close()
@@ -68,7 +68,7 @@ def update_status(order_id):
 
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("UPDATE orders  SET status = %s WHERE id = %s", (new_status, order_id))
+    cursor.execute("UPDATE orders SET status = %s WHERE id = %s", (new_status, order_id))
     conn.commit()
     cursor.close()
     conn.close()
@@ -80,7 +80,7 @@ def update_status(order_id):
 def list_orders():
     conn = get_db()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    cursor.execute("SELECT * FROM orders  ORDER BY id DESC")
+    cursor.execute("SELECT * FROM orders ORDER BY id DESC")
     rows = cursor.fetchall()
     cursor.close()
     conn.close()
