@@ -44,7 +44,7 @@ def create_order():
         if result is None:
             raise Exception("ID alınamadı")
 
-        order_id = result[0]
+        order_id = result['id']
         conn.commit()
         cursor.close()
         conn.close()
