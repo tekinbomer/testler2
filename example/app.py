@@ -39,3 +39,6 @@ def update_status(order_id):
 
 if __name__ == '__main__':
     app.run(debug=True)
+@app.route('/orders', methods=['GET'])
+def list_orders():
+    return jsonify(list(orders.values()))
