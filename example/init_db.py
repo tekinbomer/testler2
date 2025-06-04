@@ -1,3 +1,4 @@
+
 import psycopg2
 from db import get_db
 
@@ -20,4 +21,4 @@ conn.commit()
 cursor.close()
 conn.close()
 
-print("✅ orders tablosu İngilizce alanlarla oluşturuldu.")
+print("✅ orders tablosu sıfırlandı ve ing yeniden oluşturuldu.")
