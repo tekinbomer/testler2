@@ -8,6 +8,6 @@ def get_db():
         database=os.getenv("PG_NAME"),
         user=os.getenv("PG_USER"),
         password=os.getenv("PG_PASS"),
-        port=os.getenv("PG_PORT"),
+        port=int(os.getenv("PG_PORT")),  # <-- DÜZELTME BURADA
         cursor_factory=RealDictCursor
-    ) 
+    )
