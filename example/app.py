@@ -17,7 +17,7 @@ def create_order():
     cursor = conn.cursor()
 
     sql = """
-        INSERT INTO siparisler (musteri, adres, urun, status)
+        INSERT INTO orders  (musteri, adres, urun, status)
         VALUES (%s, %s, %s, %s)
         RETURNING id
     """
