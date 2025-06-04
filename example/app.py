@@ -11,36 +11,46 @@ CORS(app)
 def create_order():
     data = request.get_json()
     if not data:
-        return jsonify({'error': 'invalid request'}), 400
+        return jsonify({'error': 'Geçersiz istek'}), 400
 
-    conn = get_db()
-    cursor = conn.cursor()
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
 
-    sql = """
-        INSERT INTO orders (musteri, adres, urun, status)
-        VALUES (%s, %s, %s, %s)
-        RETURNING id
-    """
-    values = (
-        data.get('müşteri'),
-        data.get('adres'),
-        data.get('ürün'),
-        'new'
-    )
+        sql = """
+            INSERT INTO orders (musteri, adres, urun, status)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id
+        """
+        values = (
+            data.get('müşteri'),
+            data.get('adres'),
+            data.get('ürün'),
+            'new'
+        )
 
-    cursor.execute(sql, values)
-    order_id = cursor.fetchone()[0]
-    conn.commit()
-    cursor.close()
-    conn.close()
+        cursor.execute(sql, values)
+        result = cursor.fetchone()
 
-    return jsonify({
-        'id': order_id,
-        'müşteri': data.get('müşteri'),
-        'adres': data.get('adres'),
-        'ürün': data.get('ürün'),
-        'status': 'new'
-    }), 201
+        if not result:
+            conn.rollback()
+            return jsonify({'error': 'Kayıt başarısız', 'details': 'ID dönmedi'}), 500
+
+        order_id = result[0]
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            'id': order_id,
+            'müşteri': data.get('müşteri'),
+            'adres': data.get('adres'),
+            'ürün': data.get('ürün'),
+            'status': 'new'
+        }), 201
+
+    except Exception as e:
+        return jsonify({'error': 'Hata oluştu', 'details': str(e)}), 500
 
 # Belirli siparişi getir
 @app.route('/orders/<int:order_id>', methods=['GET'])
@@ -54,7 +64,7 @@ def get_order(order_id):
     conn.close()
 
     if row is None:
-        return jsonify({'error': 'not found'}), 404
+        return jsonify({'error': 'Sipariş bulunamadı'}), 404
 
     return jsonify(dict(row))
 
@@ -64,7 +74,7 @@ def update_status(order_id):
     data = request.get_json()
     new_status = data.get('status')
     if not new_status:
-        return jsonify({'error': 'status required'}), 400
+        return jsonify({'error': 'Durum gerekli'}), 400
 
     conn = get_db()
     cursor = conn.cursor()
