@@ -21,12 +21,13 @@ def create_order():
         VALUES (%s, %s, %s, %s)
         RETURNING id
     """
-    values = (
-        data.get('müşteri'),
-        data.get('adres'),
-        data.get('ürün'),
-        'new'
-    )
+values = (
+    data.get('customer'),
+    data.get('address'),
+    data.get('product'),
+    'new'
+)
+
     cursor.execute(sql, values)
     order_id = cursor.fetchone()[0]
     conn.commit()
