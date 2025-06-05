@@ -1,24 +1,42 @@
-
+import os
 import psycopg2
-from db import get_db
 
-conn = get_db()
-cursor = conn.cursor()
+# Ortam değişkenlerinden oku
+DB_HOST = os.environ.get("PG_HOST")
+DB_NAME = os.environ.get("PG_NAME")
+DB_USER = os.environ.get("PG_USER")
+DB_PASS = os.environ.get("PG_PASS")
+DB_PORT = os.environ.get("PG_PORT", "5432")  # Varsayılanı 5432
 
-cursor.execute("DROP TABLE IF EXISTS orders")
+try:
+    conn = psycopg2.connect(
+        host=DB_HOST,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS,
+        port=DB_PORT
+    )
+    conn.autocommit = True
+    cur = conn.cursor()
 
-cursor.execute("""
-CREATE TABLE orders (
-    id SERIAL PRIMARY KEY,
-    customer TEXT NOT NULL,
-    address TEXT NOT NULL,
-    product TEXT NOT NULL,
-    status TEXT DEFAULT 'new'
-)
-""")
+    # Tabloyu sıfırla
+    cur.execute("DROP TABLE IF EXISTS orders;")
+    cur.execute("""
+        CREATE TABLE orders (
+            id SERIAL PRIMARY KEY,
+            customer TEXT,
+            address TEXT,
+            phone TEXT,
+            product TEXT,
+            note TEXT,
+            status TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
 
-conn.commit()
-cursor.close()
-conn.close()
+    print("orders tablosu başarıyla oluşturuldu.")
 
-print("✅ orders tablosu sıfırlandı ve ing yeniden oluşturuldu.")
+    cur.close()
+    conn.close()
+except Exception as e:
+    print("HATA:", e)
