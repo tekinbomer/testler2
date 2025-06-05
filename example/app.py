@@ -1,32 +1,58 @@
-
-
-# Doğru:
-from vapid_key import generate_vapid_keys
-
-
-# altına bu fonksiyonu çağır:
-print(generate_vapid_keys())
-
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from db import get_db
 import psycopg2.extras
+import traceback
+from pywebpush import webpush, WebPushException
+
+# VAPID anahtarları (senin oluşturduğun değerler)
+VAPID_PUBLIC_KEY = "BMOhjeHer31_xUhmI63P5j_nL3uhLVHr25lruI4JUQ_qqzVJbhUynQjFz7LWm7dCUtmvbhr468E-Iijoyr09c6w"
+VAPID_PRIVATE_KEY = "03QgB9XbHqRZY-AdT65mwphBLZJzhustenhepCO6d1E"
+VAPID_CLAIMS = {
+    "sub": "mailto:siparis@tarotalemi.com"
+}
+
+# Geçici olarak abone listesi bellekte tutulur
+subscriptions = []
 
 app = Flask(__name__)
 CORS(app)
 
-# Sipariş oluştur
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-from db import get_db
-import psycopg2.extras
-import traceback  # ← bu satırı ekle
+# VAPID public key'i istemciye ver
+@app.route("/vapid-public-key")
+def get_public_key():
+    return VAPID_PUBLIC_KEY
 
-app = Flask(__name__)
-CORS(app)
+# Kullanıcı abone olur
+@app.route("/subscribe", methods=["POST"])
+def subscribe():
+    data = request.get_json()
+    subscriptions.append(data)
+    return jsonify({"status": "abone kaydedildi"})
 
-# Sipariş oluştur
+# Manuel test için push gönder
+@app.route("/push", methods=["POST"])
+def send_push():
+    try:
+        payload = request.get_json()
+        title = payload.get("title", "Yeni Sipariş Var!")
+        body = payload.get("body", "Ahmet için yeni sipariş geldi.")
+
+        for sub in subscriptions:
+            webpush(
+                subscription_info=sub,
+                data=jsonify({"title": title, "body": body}).get_data(as_text=True),
+                vapid_private_key=VAPID_PRIVATE_KEY,
+                vapid_claims=VAPID_CLAIMS
+            )
+
+        return jsonify({"status": "bildirim gönderildi"})
+
+    except WebPushException as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# 🔴 Sipariş oluştur
 @app.route('/orders', methods=['POST'])
 def create_order():
     try:
@@ -59,6 +85,20 @@ def create_order():
         cursor.close()
         conn.close()
 
+        # ✅ Sipariş başarılı → push bildirimi tetiklenir
+        title = "Yeni Sipariş Var"
+        body = f"{data.get('customer')} için sipariş alındı: {data.get('product')}"
+        for sub in subscriptions:
+            try:
+                webpush(
+                    subscription_info=sub,
+                    data=jsonify({"title": title, "body": body}).get_data(as_text=True),
+                    vapid_private_key=VAPID_PRIVATE_KEY,
+                    vapid_claims=VAPID_CLAIMS
+                )
+            except WebPushException as e:
+                print("Bildirim hatası:", e)
+
         return jsonify({
             'id': order_id,
             'customer': data.get('customer'),
@@ -68,7 +108,7 @@ def create_order():
         }), 201
 
     except Exception as e:
-        print("HATA:", traceback.format_exc())  # ← logu detaylı bas
+        print("HATA:", traceback.format_exc())
         return jsonify({'error': 'Veritabanı hatası', 'details': str(e)}), 500
 
 
@@ -87,7 +127,7 @@ def get_order(order_id):
 
     return jsonify(dict(row))
 
-# Sipariş güncelle
+# Sipariş durumunu güncelle
 @app.route('/orders/<int:order_id>/status', methods=['POST'])
 def update_status(order_id):
     data = request.get_json()
@@ -104,7 +144,7 @@ def update_status(order_id):
 
     return jsonify({'id': order_id, 'status': new_status})
 
-# Tüm siparişleri listele
+# Tüm siparişleri getir
 @app.route('/orders', methods=['GET'])
 def list_orders():
     conn = get_db()
@@ -116,5 +156,6 @@ def list_orders():
 
     return jsonify([dict(row) for row in rows])
 
+# Uygulama çalıştır
 if __name__ == '__main__':
     app.run(debug=True)
