@@ -1,5 +1,5 @@
 # app.py içinde en üstte sadece bir kez şunu ekle (geçici)
-from vapi_key import generate_keys
+from vapid_key import generate_keys
 
 # altına bu fonksiyonu çağır:
 print(generate_keys())
