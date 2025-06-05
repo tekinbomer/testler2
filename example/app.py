@@ -5,7 +5,7 @@ import psycopg2.extras
 import traceback
 from pywebpush import webpush, WebPushException
 
-# VAPID anahtarları (senin oluşturduğun değerler)
+# VAPID anahtarları (kendi değerlerinle doldur)
 VAPID_PUBLIC_KEY = "BMOhjeHer31_xUhmI63P5j_nL3uhLVHr25lruI4JUQ_qqzVJbhUynQjFz7LWm7dCUtmvbhr468E-Iijoyr09c6w"
 VAPID_PRIVATE_KEY = "03QgB9XbHqRZY-AdT65mwphBLZJzhustenhepCO6d1E"
 VAPID_CLAIMS = {
@@ -23,36 +23,39 @@ CORS(app)
 def get_public_key():
     return VAPID_PUBLIC_KEY
 
-# Kullanıcı abone olur
+# Kullanıcı abone olur (Web Push)
 @app.route("/subscribe", methods=["POST"])
 def subscribe():
     data = request.get_json()
-    subscriptions.append(data)
+    if data and data not in subscriptions:
+        subscriptions.append(data)
     return jsonify({"status": "abone kaydedildi"})
 
-# Manuel test için push gönder
-@app.route("/push", methods=["POST"])
-def send_push():
-    try:
-        payload = request.get_json()
-        title = payload.get("title", "Yeni Sipariş Var!")
-        body = payload.get("body", "Ahmet için yeni sipariş geldi.")
+# Tüm siparişleri getir
+@app.route('/orders', methods=['GET'])
+def list_orders():
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    cursor.execute("SELECT * FROM orders ORDER BY id DESC")
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify([dict(row) for row in rows])
 
-        for sub in subscriptions:
-            webpush(
-                subscription_info=sub,
-                data=jsonify({"title": title, "body": body}).get_data(as_text=True),
-                vapid_private_key=VAPID_PRIVATE_KEY,
-                vapid_claims=VAPID_CLAIMS
-            )
+# Belirli bir siparişi getir
+@app.route('/orders/<int:order_id>', methods=['GET'])
+def get_order(order_id):
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    cursor.execute("SELECT * FROM orders WHERE id = %s", (order_id,))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    if row is None:
+        return jsonify({'error': 'Sipariş bulunamadı'}), 404
+    return jsonify(dict(row))
 
-        return jsonify({"status": "bildirim gönderildi"})
-
-    except WebPushException as e:
-        return jsonify({"error": str(e)}), 500
-
-
-# 🔴 Sipariş oluştur
+# Sipariş oluştur
 @app.route('/orders', methods=['POST'])
 def create_order():
     try:
@@ -64,14 +67,16 @@ def create_order():
         cursor = conn.cursor()
 
         sql = """
-            INSERT INTO orders (customer, address, product, status)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO orders (customer, address, product, phone, note, status)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id
         """
         values = (
             data.get('customer'),
             data.get('address'),
             data.get('product'),
+            data.get('phone'),
+            data.get('note'),
             'new'
         )
 
@@ -85,7 +90,7 @@ def create_order():
         cursor.close()
         conn.close()
 
-        # ✅ Sipariş başarılı → push bildirimi tetiklenir
+        # Yeni sipariş bildirimi
         title = "Yeni Sipariş Var"
         body = f"{data.get('customer')} için sipariş alındı: {data.get('product')}"
         for sub in subscriptions:
@@ -104,28 +109,14 @@ def create_order():
             'customer': data.get('customer'),
             'address': data.get('address'),
             'product': data.get('product'),
+            'phone': data.get('phone'),
+            'note': data.get('note'),
             'status': 'new'
         }), 201
 
     except Exception as e:
         print("HATA:", traceback.format_exc())
         return jsonify({'error': 'Veritabanı hatası', 'details': str(e)}), 500
-
-
-# Siparişi getir
-@app.route('/orders/<int:order_id>', methods=['GET'])
-def get_order(order_id):
-    conn = get_db()
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    cursor.execute("SELECT * FROM orders WHERE id = %s", (order_id,))
-    row = cursor.fetchone()
-    cursor.close()
-    conn.close()
-
-    if row is None:
-        return jsonify({'error': 'Sipariş bulunamadı'}), 404
-
-    return jsonify(dict(row))
 
 # Sipariş durumunu güncelle
 @app.route('/orders/<int:order_id>/status', methods=['POST'])
@@ -141,64 +132,25 @@ def update_status(order_id):
     conn.commit()
     cursor.close()
     conn.close()
-
     return jsonify({'id': order_id, 'status': new_status})
 
-# Tüm siparişleri getir
-@app.route('/orders', methods=['GET'])
-def list_orders():
-    conn = get_db()
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    cursor.execute("SELECT * FROM orders ORDER BY id DESC")
-    rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
-
-    return jsonify([dict(row) for row in rows])
-    import json
-from pywebpush import webpush, WebPushException
-
-# Geçici abonelik listesi – test için
-subscriptions = []
-
-# Abonelik kaydı
-@app.route('/subscribe', methods=['POST'])
-def save_subscription():
-    sub = request.get_json()
-    if sub not in subscriptions:
-        subscriptions.append(sub)
-    return jsonify({'status': 'success'}), 201
-
-# Push mesajı gönderme fonksiyonu
-def send_push_to_all(title, body):
-    payload = {
-        "title": title,
-        "body": body,
-        "icon": "https://tekinservis.com/favicon.png",
-        "url": "https://tekinservis.com/"
-    }
-
-    for sub in subscriptions:
-        try:
+# Manuel push tetikleme endpoint'i (isteğe bağlı)
+@app.route("/push", methods=["POST"])
+def send_push():
+    try:
+        payload = request.get_json()
+        title = payload.get("title", "Yeni Sipariş Var!")
+        body = payload.get("body", "Ahmet için yeni sipariş geldi.")
+        for sub in subscriptions:
             webpush(
                 subscription_info=sub,
-                data=json.dumps(payload),
-                vapid_private_key="03QgB9XbHqRZY-AdT65mwphBLZJzhustenhepCO6d1E",
-                vapid_claims={"sub": "mailto:siparis@tarotalemi.com"}
+                data=jsonify({"title": title, "body": body}).get_data(as_text=True),
+                vapid_private_key=VAPID_PRIVATE_KEY,
+                vapid_claims=VAPID_CLAIMS
             )
-        except WebPushException as ex:
-            print("❌ Push gönderilemedi:", repr(ex))
+        return jsonify({"status": "bildirim gönderildi"})
+    except WebPushException as e:
+        return jsonify({"error": str(e)}), 500
 
-# Bildirim tetikleme endpoint'i
-@app.route('/notify-all', methods=['POST'])
-def notify_all():
-    data = request.get_json()
-    title = data.get("title", "Yeni Bildirim")
-    body = data.get("body", "Bir gelişme var.")
-    send_push_to_all(title, body)
-    return jsonify({"status": "OK"}), 200
-
-
-# Uygulama çalıştır
 if __name__ == '__main__':
     app.run(debug=True)
