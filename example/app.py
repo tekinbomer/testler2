@@ -1,8 +1,11 @@
-# app.py içinde en üstte sadece bir kez şunu ekle (geçici)
-from vapid_key import generate_keys
+
+
+# Doğru:
+from vapid_key import generate_vapid_keys
+
 
 # altına bu fonksiyonu çağır:
-print(generate_keys())
+print(generate_vapid_keys())
 
 
 from flask import Flask, request, jsonify
