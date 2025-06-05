@@ -1,3 +1,10 @@
+# app.py içinde en üstte sadece bir kez şunu ekle (geçici)
+from vapi_key import generate_keys
+
+# altına bu fonksiyonu çağır:
+print(generate_keys())
+
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from db import get_db
