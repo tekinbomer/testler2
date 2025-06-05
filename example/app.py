@@ -155,6 +155,49 @@ def list_orders():
     conn.close()
 
     return jsonify([dict(row) for row in rows])
+    import json
+from pywebpush import webpush, WebPushException
+
+# Geçici abonelik listesi – test için
+subscriptions = []
+
+# Abonelik kaydı
+@app.route('/subscribe', methods=['POST'])
+def save_subscription():
+    sub = request.get_json()
+    if sub not in subscriptions:
+        subscriptions.append(sub)
+    return jsonify({'status': 'success'}), 201
+
+# Push mesajı gönderme fonksiyonu
+def send_push_to_all(title, body):
+    payload = {
+        "title": title,
+        "body": body,
+        "icon": "https://tekinservis.com/favicon.png",
+        "url": "https://tekinservis.com/"
+    }
+
+    for sub in subscriptions:
+        try:
+            webpush(
+                subscription_info=sub,
+                data=json.dumps(payload),
+                vapid_private_key="03QgB9XbHqRZY-AdT65mwphBLZJzhustenhepCO6d1E",
+                vapid_claims={"sub": "mailto:siparis@tarotalemi.com"}
+            )
+        except WebPushException as ex:
+            print("❌ Push gönderilemedi:", repr(ex))
+
+# Bildirim tetikleme endpoint'i
+@app.route('/notify-all', methods=['POST'])
+def notify_all():
+    data = request.get_json()
+    title = data.get("title", "Yeni Bildirim")
+    body = data.get("body", "Bir gelişme var.")
+    send_push_to_all(title, body)
+    return jsonify({"status": "OK"}), 200
+
 
 # Uygulama çalıştır
 if __name__ == '__main__':
