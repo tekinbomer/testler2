@@ -18,31 +18,8 @@ try:
     conn.autocommit = True
     cur = conn.cursor()
 
-    # Tabloları eski haliyle sil
+    # Sadece orders tablosunu sıfırla
     cur.execute("DROP TABLE IF EXISTS orders;")
-    cur.execute("DROP TABLE IF EXISTS products;")
-    cur.execute("DROP TABLE IF EXISTS categories;")
-
-    # Kategori tablosu
-    cur.execute("""
-        CREATE TABLE categories (
-            id SERIAL PRIMARY KEY,
-            name TEXT UNIQUE
-        );
-    """)
-
-    # Ürün tablosu (kategoriye bağlı)
-    cur.execute("""
-        CREATE TABLE products (
-            id SERIAL PRIMARY KEY,
-            name TEXT,
-            price NUMERIC(10,2),
-            image_url TEXT,
-            category_id INTEGER REFERENCES categories(id)
-        );
-    """)
-
-    # Sipariş tablosu (ürünler burada string olarak tutulacak)
     cur.execute("""
         CREATE TABLE orders (
             id SERIAL PRIMARY KEY,
@@ -55,18 +32,7 @@ try:
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
-
-    print("Tüm tablolar başarıyla oluşturuldu.")
-
-    # ÖRNEK kategori ve ürün ekle (ilk kullanıma hazır olsun)
-    cur.execute("INSERT INTO categories (name) VALUES ('Ana Menü'), ('Tatlılar'), ('İçecekler');")
-    cur.execute("INSERT INTO products (name, price, image_url, category_id) VALUES" +
-        "('Pizza', 120, 'https://tekinservis.com/pizza.jpg', (SELECT id FROM categories WHERE name='Ana Menü'))," +
-        "('Kola', 30, 'https://tekinservis.com/kola.jpg', (SELECT id FROM categories WHERE name='İçecekler'))," +
-        "('Cheesecake', 60, 'https://tekinservis.com/cheesecake.jpg', (SELECT id FROM categories WHERE name='Tatlılar'));"
-    )
-
-    print("Örnek kategoriler ve ürünler eklendi.")
+    print("orders tablosu başarıyla oluşturuldu.")
 
     cur.close()
     conn.close()
