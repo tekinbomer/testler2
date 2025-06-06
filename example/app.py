@@ -5,25 +5,20 @@ import psycopg2.extras
 import traceback
 from pywebpush import webpush, WebPushException
 
-# VAPID anahtarları (kendi değerlerinle doldur)
+# VAPID anahtarları
 VAPID_PUBLIC_KEY = "BMOhjeHer31_xUhmI63P5j_nL3uhLVHr25lruI4JUQ_qqzVJbhUynQjFz7LWm7dCUtmvbhr468E-Iijoyr09c6w"
 VAPID_PRIVATE_KEY = "03QgB9XbHqRZY-AdT65mwphBLZJzhustenhepCO6d1E"
-VAPID_CLAIMS = {
-    "sub": "mailto:siparis@tarotalemi.com"
-}
+VAPID_CLAIMS = {"sub": "mailto:siparis@tarotalemi.com"}
 
-# Geçici olarak abone listesi bellekte tutulur
 subscriptions = []
 
 app = Flask(__name__)
 CORS(app)
 
-# VAPID public key'i istemciye ver
 @app.route("/vapid-public-key")
 def get_public_key():
     return VAPID_PUBLIC_KEY
 
-# Kullanıcı abone olur (Web Push)
 @app.route("/subscribe", methods=["POST"])
 def subscribe():
     data = request.get_json()
@@ -31,7 +26,34 @@ def subscribe():
         subscriptions.append(data)
     return jsonify({"status": "abone kaydedildi"})
 
-# Tüm siparişleri getir
+# --- KATEGORİLER ---
+@app.route('/categories', methods=['GET'])
+def list_categories():
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    cursor.execute("SELECT * FROM categories ORDER BY id ASC")
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify([dict(row) for row in rows])
+
+# --- ÜRÜNLER (kategori isimli!) ---
+@app.route('/products', methods=['GET'])
+def list_products():
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    cursor.execute("""
+        SELECT p.id, p.name AS urun_adi, p.price AS fiyat, p.image_url AS resim_url, c.name AS kategori
+        FROM products p
+        JOIN categories c ON p.category_id = c.id
+        ORDER BY c.id, p.id
+    """)
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify([dict(row) for row in rows])
+
+# --- SİPARİŞLER ---
 @app.route('/orders', methods=['GET'])
 def list_orders():
     conn = get_db()
@@ -42,7 +64,6 @@ def list_orders():
     conn.close()
     return jsonify([dict(row) for row in rows])
 
-# Belirli bir siparişi getir
 @app.route('/orders/<int:order_id>', methods=['GET'])
 def get_order(order_id):
     conn = get_db()
@@ -55,7 +76,6 @@ def get_order(order_id):
         return jsonify({'error': 'Sipariş bulunamadı'}), 404
     return jsonify(dict(row))
 
-# Sipariş oluştur
 @app.route('/orders', methods=['POST'])
 def create_order():
     try:
@@ -64,8 +84,7 @@ def create_order():
             return jsonify({'error': 'Eksik veri'}), 400
 
         conn = get_db()
-        cursor = conn.cursor()
-
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         sql = """
             INSERT INTO orders (customer, address, product, phone, note, status)
             VALUES (%s, %s, %s, %s, %s, %s)
@@ -79,18 +98,16 @@ def create_order():
             data.get('note'),
             'new'
         )
-
         cursor.execute(sql, values)
         result = cursor.fetchone()
         if result is None:
             raise Exception("ID alınamadı")
-
         order_id = result['id']
         conn.commit()
         cursor.close()
         conn.close()
 
-        # Yeni sipariş bildirimi
+        # Bildirim
         title = "Yeni Sipariş Var"
         body = f"{data.get('customer')} için sipariş alındı: {data.get('product')}"
         for sub in subscriptions:
@@ -118,7 +135,6 @@ def create_order():
         print("HATA:", traceback.format_exc())
         return jsonify({'error': 'Veritabanı hatası', 'details': str(e)}), 500
 
-# Sipariş durumunu güncelle
 @app.route('/orders/<int:order_id>/status', methods=['POST'])
 def update_status(order_id):
     data = request.get_json()
@@ -134,7 +150,6 @@ def update_status(order_id):
     conn.close()
     return jsonify({'id': order_id, 'status': new_status})
 
-# Manuel push tetikleme endpoint'i (isteğe bağlı)
 @app.route("/push", methods=["POST"])
 def send_push():
     try:
