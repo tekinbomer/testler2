@@ -1,9 +1,11 @@
-# Ortam değişkenlerinden oku
+import os
+import psycopg2
+
 DB_HOST = os.environ.get("PG_HOST")
 DB_NAME = os.environ.get("PG_NAME")
 DB_USER = os.environ.get("PG_USER")
 DB_PASS = os.environ.get("PG_PASS")
-DB_PORT = os.environ.get("PG_PORT", "5432")  # Varsayılanı 5432
+DB_PORT = os.environ.get("PG_PORT", "5432")
 
 try:
     conn = psycopg2.connect(
@@ -16,8 +18,12 @@ try:
     conn.autocommit = True
     cur = conn.cursor()
 
-    # Tabloyu sıfırla
+    # Önce diğer tabloları da sil (varsa)
     cur.execute("DROP TABLE IF EXISTS orders;")
+    cur.execute("DROP TABLE IF EXISTS products;")
+    cur.execute("DROP TABLE IF EXISTS categories;")
+
+    # Sadece orders tablosunu oluştur
     cur.execute("""
         CREATE TABLE orders (
             id SERIAL PRIMARY KEY,
@@ -30,7 +36,6 @@ try:
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
-
     print("orders tablosu başarıyla oluşturuldu.")
 
     cur.close()
