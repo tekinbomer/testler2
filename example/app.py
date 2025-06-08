@@ -21,14 +21,27 @@ def notify(role, title, body):
     for sub in subscriptions:
         if sub.get("role") == role:
             try:
+                # Endpoint'ten audience çıkar
+                endpoint = sub.get("endpoint", "")
+                # FCM için (Google): endpoint başı "https://fcm.googleapis.com" ile başlar
+                audience = endpoint.split("/push-service")[0] if "/push-service" in endpoint else endpoint.split("/send/")[0]
+                # Bazı endpointler için split("/send/")[0] kullanılabilir
+                if "://" in audience:
+                    audience = audience.split("/", 3)
+                    audience = audience[0] + "//" + audience[2]
+                vapid_claims = {
+                    "sub": VAPID_CLAIMS["sub"],
+                    "aud": audience
+                }
                 webpush(
                     subscription_info=sub,
                     data=json.dumps({"title": title, "body": body}),
                     vapid_private_key=VAPID_PRIVATE_KEY,
-                    vapid_claims=VAPID_CLAIMS
+                    vapid_claims=vapid_claims
                 )
             except WebPushException as e:
                 print("Bildirim hatası:", e)
+
 
 # ----- VAPID KEY -----
 @app.route("/vapid-public-key")
