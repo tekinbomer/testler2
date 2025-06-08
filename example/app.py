@@ -1,6 +1,3 @@
-print(f"notify çağrıldı! rol={role}")
-print("Mevcut aboneler:", subscriptions)
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from db import get_db
@@ -21,6 +18,8 @@ CORS(app)
 
 # ----- UTIL: ROL BAZLI BİLDİRİM FONKSİYONU -----
 def notify(role, title, body):
+    print(f"notify çağrıldı! rol={role}")
+    print("Mevcut aboneler:", subscriptions)
     for sub in subscriptions:
         if sub.get("role") == role:
             try:
