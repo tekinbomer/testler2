@@ -40,6 +40,7 @@ def notify(role, title, body, url=None, customer_id=None):
                         "title": title,
                         "body": body,
                         "url": url
+                        "playSound": play_sound
                     }),
                     vapid_private_key=VAPID_PRIVATE_KEY,
                     vapid_claims=vapid_claims
@@ -185,17 +186,16 @@ def update_status(order_id):
 
     # Statüye göre doğru url ve müşteri_id ile push gönder
     if new_status == "kurye_cagir":
-        notify("kurye", "Kurye Görevi", f"{order['customer']} siparişi için kurye çağrıldı.", url="/kurye_takip.html")
+    notify("kurye", "Kurye Görevi", f"{order['customer']} siparişi için kurye çağrıldı.", url="/kurye_takip.html", play_sound=False)
     elif new_status == "kurye_geldi":
-        notify("admin", "Kurye Geldi", f"{order['customer']} siparişi için kurye geldi.", url="/admin_panel.html")
+    notify("admin", "Kurye Geldi", f"{order['customer']} siparişi için kurye geldi.", url="/admin_panel.html", play_sound=True)
     elif new_status == "yolda":
-        notify("admin", "Sipariş Yolda", f"{order['customer']} siparişi yolda.", url="/admin_panel.html")
-        notify("customer", "Siparişiniz Yola Çıktı 🚚", "Siparişiniz teslimata çıktı, birazdan kapınızda!", url="/test.html", customer_id=order['phone'])
+    notify("admin", "Sipariş Yolda", f"{order['customer']} siparişi yolda.", url="/admin_panel.html", play_sound=False)
+    notify("customer", "Siparişiniz Yola Çıktı 🚚", "Siparişiniz teslimata çıktı, birazdan kapınızda!", url="/test.html", customer_id=order['phone'], play_sound=False)
     elif new_status == "teslim edildi":
-        notify("admin", "Teslim Edildi", f"{order['customer']} siparişi teslim edildi.", url="/admin_panel.html")
-        notify("customer", "Siparişiniz Teslim Edildi ✅", "Siparişiniz teslim edildi. Afiyet olsun!", url="/", customer_id=order['phone'])
-
-    return jsonify({'id': order_id, 'status': new_status})
+    notify("admin", "Teslim Edildi", f"{order['customer']} siparişi teslim edildi.", url="/admin_panel.html", play_sound=True)
+    notify("customer", "Siparişiniz Teslim Edildi ✅", "Siparişiniz teslim edildi. Afiyet olsun!", url="/test.html", customer_id=order['phone'], play_sound=True)
+)
 
 # ---------- MANUEL PUSH TESTİ (opsiyonel) ----------
 @app.route("/push", methods=["POST"])
