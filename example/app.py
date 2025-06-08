@@ -16,18 +16,15 @@ subscriptions = []
 app = Flask(__name__)
 CORS(app)
 
-# ----- UTIL: ROL BAZLI BİLDİRİM FONKSİYONU -----
+# ----------- ROL BAZLI BİLDİRİM (URL parametreli) -----------
 def notify(role, title, body, url=None):
-    print(f"notify çağrıldı! rol={role}")
+    print(f"notify çağrıldı! rol={role} | url={url}")
     print("Mevcut aboneler:", subscriptions)
     for sub in subscriptions:
         if sub.get("role") == role:
             try:
-                # Endpoint'ten audience çıkar
                 endpoint = sub.get("endpoint", "")
-                # FCM için (Google): endpoint başı "https://fcm.googleapis.com" ile başlar
                 audience = endpoint.split("/push-service")[0] if "/push-service" in endpoint else endpoint.split("/send/")[0]
-                # Bazı endpointler için split("/send/")[0] kullanılabilir
                 if "://" in audience:
                     audience = audience.split("/", 3)
                     audience = audience[0] + "//" + audience[2]
@@ -35,9 +32,14 @@ def notify(role, title, body, url=None):
                     "sub": VAPID_CLAIMS["sub"],
                     "aud": audience
                 }
+                # >>> Bildirimde URL parametresi ekliyoruz! <<<
                 webpush(
                     subscription_info=sub,
-                    data=json.dumps({"title": title, "body": body, "url": url}),
+                    data=json.dumps({
+                        "title": title,
+                        "body": body,
+                        "url": url
+                    }),
                     vapid_private_key=VAPID_PRIVATE_KEY,
                     vapid_claims=vapid_claims
                 )
@@ -45,12 +47,12 @@ def notify(role, title, body, url=None):
                 print("Bildirim hatası:", e)
 
 
-# ----- VAPID KEY -----
+# ---------- VAPID KEY ----------
 @app.route("/vapid-public-key")
 def get_public_key():
     return VAPID_PUBLIC_KEY
 
-# ----- SUBSCRIBE (KURYE/ADMIN) -----
+# ---------- SUBSCRIBE (KURYE/ADMIN) ----------
 @app.route("/subscribe", methods=["POST"])
 def subscribe():
     data = request.get_json()
@@ -59,7 +61,7 @@ def subscribe():
         subscriptions.append(data)
     return jsonify({"status": "abone kaydedildi"})
 
-# ----- KATEGORİLER -----
+# ---------- KATEGORİLER ----------
 @app.route('/categories', methods=['GET'])
 def list_categories():
     conn = get_db()
@@ -70,7 +72,7 @@ def list_categories():
     conn.close()
     return jsonify([dict(row) for row in rows])
 
-# ----- ÜRÜNLER -----
+# ---------- ÜRÜNLER ----------
 @app.route('/products', methods=['GET'])
 def list_products():
     conn = get_db()
@@ -86,7 +88,7 @@ def list_products():
     conn.close()
     return jsonify([dict(row) for row in rows])
 
-# ----- TÜM SİPARİŞLER -----
+# ---------- TÜM SİPARİŞLER ----------
 @app.route('/orders', methods=['GET'])
 def list_orders():
     conn = get_db()
@@ -97,7 +99,7 @@ def list_orders():
     conn.close()
     return jsonify([dict(row) for row in rows])
 
-# ----- TEK SİPARİŞ -----
+# ---------- TEK SİPARİŞ ----------
 @app.route('/orders/<int:order_id>', methods=['GET'])
 def get_order(order_id):
     conn = get_db()
@@ -110,7 +112,7 @@ def get_order(order_id):
         return jsonify({'error': 'Sipariş bulunamadı'}), 404
     return jsonify(dict(row))
 
-# ----- SİPARİŞ OLUŞTUR -----
+# ---------- SİPARİŞ OLUŞTUR ----------
 @app.route('/orders', methods=['POST'])
 def create_order():
     try:
@@ -142,8 +144,8 @@ def create_order():
         cursor.close()
         conn.close()
 
-        # Bildirim sadece adminlere
-        notify("admin", "Yeni Sipariş Var", f"{data.get('customer')} için sipariş alındı: {data.get('product')}")
+        # Bildirim sadece adminlere, url ile!
+        notify("admin", "Yeni Sipariş Var", f"{data.get('customer')} için sipariş alındı: {data.get('product')}", url="/admin_panel.html")
 
         return jsonify({
             'id': order_id,
@@ -159,7 +161,7 @@ def create_order():
         print("HATA:", traceback.format_exc())
         return jsonify({'error': 'Veritabanı hatası', 'details': str(e)}), 500
 
-# ----- SİPARİŞ DURUMU GÜNCELLEME (ve BİLDİRİM) -----
+# ---------- SİPARİŞ DURUMU GÜNCELLEME ve BİLDİRİM ----------
 @app.route('/orders/<int:order_id>/status', methods=['POST'])
 def update_status(order_id):
     data = request.get_json()
@@ -176,19 +178,19 @@ def update_status(order_id):
     cursor.close()
     conn.close()
 
-    # Statüye göre bildirim
+    # Statüye göre doğru url ile push gönder
     if new_status == "kurye_cagir":
-        notify("kurye", "Kurye Görevi", f"{order['customer']} siparişi için kurye çağrıldı.")
+        notify("kurye", "Kurye Görevi", f"{order['customer']} siparişi için kurye çağrıldı.", url="/kurye_takip.html")
     elif new_status == "kurye_geldi":
-        notify("admin", "Kurye Geldi", f"{order['customer']} siparişi için kurye geldi.")
+        notify("admin", "Kurye Geldi", f"{order['customer']} siparişi için kurye geldi.", url="/admin_panel.html")
     elif new_status == "yolda":
-        notify("admin", "Sipariş Yolda", f"{order['customer']} siparişi yolda.")
+        notify("admin", "Sipariş Yolda", f"{order['customer']} siparişi yolda.", url="/admin_panel.html")
     elif new_status == "teslim edildi":
-        notify("admin", "Teslim Edildi", f"{order['customer']} siparişi teslim edildi.")
+        notify("admin", "Teslim Edildi", f"{order['customer']} siparişi teslim edildi.", url="/admin_panel.html")
 
     return jsonify({'id': order_id, 'status': new_status})
 
-# ----- MANUEL PUSH TESTİ (opsiyonel) -----
+# ---------- MANUEL PUSH TESTİ (opsiyonel) ----------
 @app.route("/push", methods=["POST"])
 def send_push():
     try:
@@ -196,7 +198,8 @@ def send_push():
         role = payload.get("role", "admin")
         title = payload.get("title", "Test Bildirim")
         body = payload.get("body", "Test mesajı")
-        notify(role, title, body)
+        url = payload.get("url", "/admin_panel.html")
+        notify(role, title, body, url)
         return jsonify({"status": "bildirim gönderildi"})
     except WebPushException as e:
         return jsonify({"error": str(e)}), 500
