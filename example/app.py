@@ -16,12 +16,11 @@ subscriptions = []
 app = Flask(__name__)
 CORS(app)
 
-# ----------- ROL + KİŞİYE ÖZEL BİLDİRİM FONKSİYONU -----------
-def notify(role, title, body, url=None, customer_id=None):
-    print(f"notify çağrıldı! rol={role} | url={url} | customer_id={customer_id}")
+# ----------- Bildirim Fonksiyonu (sound kontrollü) -----------
+def notify(role, title, body, url=None, customer_id=None, play_sound=False):
+    print(f"notify çağrıldı! rol={role} | url={url} | customer_id={customer_id} | play_sound={play_sound}")
     for sub in subscriptions:
         if sub.get("role") == role:
-            # Eğer müşteri bildirimi ise ve id gelmişse, sadece o id'ye gönder
             if role == "customer" and customer_id and sub.get("customer_id") != customer_id:
                 continue
             try:
@@ -39,7 +38,7 @@ def notify(role, title, body, url=None, customer_id=None):
                     data=json.dumps({
                         "title": title,
                         "body": body,
-                        "url": url
+                        "url": url,
                         "playSound": play_sound
                     }),
                     vapid_private_key=VAPID_PRIVATE_KEY,
@@ -48,16 +47,15 @@ def notify(role, title, body, url=None, customer_id=None):
             except WebPushException as e:
                 print("Bildirim hatası:", e)
 
-# ---------- VAPID KEY ----------
+# ---------- VAPID anahtarı ----------
 @app.route("/vapid-public-key")
 def get_public_key():
     return VAPID_PUBLIC_KEY
 
-# ---------- SUBSCRIBE (KURYE/ADMIN/CUSTOMER) ----------
+# ---------- Abonelik kaydı ----------
 @app.route("/subscribe", methods=["POST"])
 def subscribe():
     data = request.get_json()
-    # endpoint+rol+customer_id aynıysa tekrar ekleme
     if data and not any(
         sub["endpoint"] == data["endpoint"] and
         sub.get("role") == data.get("role") and
@@ -67,7 +65,7 @@ def subscribe():
         subscriptions.append(data)
     return jsonify({"status": "abone kaydedildi"})
 
-# ---------- KATEGORİLER ----------
+# ---------- Kategoriler ----------
 @app.route('/categories', methods=['GET'])
 def list_categories():
     conn = get_db()
@@ -78,7 +76,7 @@ def list_categories():
     conn.close()
     return jsonify([dict(row) for row in rows])
 
-# ---------- ÜRÜNLER ----------
+# ---------- Ürünler ----------
 @app.route('/products', methods=['GET'])
 def list_products():
     conn = get_db()
@@ -94,7 +92,7 @@ def list_products():
     conn.close()
     return jsonify([dict(row) for row in rows])
 
-# ---------- TÜM SİPARİŞLER ----------
+# ---------- Tüm siparişler ----------
 @app.route('/orders', methods=['GET'])
 def list_orders():
     conn = get_db()
@@ -105,7 +103,7 @@ def list_orders():
     conn.close()
     return jsonify([dict(row) for row in rows])
 
-# ---------- TEK SİPARİŞ ----------
+# ---------- Tek sipariş ----------
 @app.route('/orders/<int:order_id>', methods=['GET'])
 def get_order(order_id):
     conn = get_db()
@@ -118,7 +116,7 @@ def get_order(order_id):
         return jsonify({'error': 'Sipariş bulunamadı'}), 404
     return jsonify(dict(row))
 
-# ---------- SİPARİŞ OLUŞTUR ----------
+# ---------- Sipariş oluştur ----------
 @app.route('/orders', methods=['POST'])
 def create_order():
     try:
@@ -137,7 +135,7 @@ def create_order():
             data.get('customer'),
             data.get('address'),
             data.get('product'),
-            data.get('phone'),  # phone burada müşteri ID'niz!
+            data.get('phone'),
             data.get('note'),
             'new'
         )
@@ -150,8 +148,8 @@ def create_order():
         cursor.close()
         conn.close()
 
-        # Bildirim sadece adminlere, url ile!
-        notify("admin", "Yeni Sipariş Var", f"{data.get('customer')} için sipariş alındı: {data.get('product')}", url="/admin_panel.html")
+        # YENİ SİPARİŞ: Admin'e sesli bildirim
+        notify("admin", "Yeni Sipariş Var", f"{data.get('customer')} için sipariş alındı: {data.get('product')}", url="/admin_panel.html", play_sound=True)
 
         return jsonify({
             'id': order_id,
@@ -167,7 +165,7 @@ def create_order():
         print("HATA:", traceback.format_exc())
         return jsonify({'error': 'Veritabanı hatası', 'details': str(e)}), 500
 
-# ---------- SİPARİŞ DURUMU GÜNCELLEME ve BİLDİRİM ----------
+# ---------- Sipariş durumu güncelleme ve bildirim ----------
 @app.route('/orders/<int:order_id>/status', methods=['POST'])
 def update_status(order_id):
     data = request.get_json()
@@ -184,20 +182,21 @@ def update_status(order_id):
     cursor.close()
     conn.close()
 
-    # Statüye göre doğru url ve müşteri_id ile push gönder
+    # Statüye göre push + sound kontrolü
     if new_status == "kurye_cagir":
-    notify("kurye", "Kurye Görevi", f"{order['customer']} siparişi için kurye çağrıldı.", url="/kurye_takip.html", play_sound=False)
+        notify("kurye", "Kurye Görevi", f"{order['customer']} siparişi için kurye çağrıldı.", url="/kurye_takip.html", play_sound=False)
     elif new_status == "kurye_geldi":
-    notify("admin", "Kurye Geldi", f"{order['customer']} siparişi için kurye geldi.", url="/admin_panel.html", play_sound=True)
+        notify("admin", "Kurye Geldi", f"{order['customer']} siparişi için kurye geldi.", url="/admin_panel.html", play_sound=True)
     elif new_status == "yolda":
-    notify("admin", "Sipariş Yolda", f"{order['customer']} siparişi yolda.", url="/admin_panel.html", play_sound=False)
-    notify("customer", "Siparişiniz Yola Çıktı 🚚", "Siparişiniz teslimata çıktı, birazdan kapınızda!", url="/test.html", customer_id=order['phone'], play_sound=False)
+        notify("admin", "Sipariş Yolda", f"{order['customer']} siparişi yolda.", url="/admin_panel.html", play_sound=False)
+        notify("customer", "Siparişiniz Yola Çıktı 🚚", "Siparişiniz teslimata çıktı, birazdan kapınızda!", url="/test.html", customer_id=order['phone'], play_sound=False)
     elif new_status == "teslim edildi":
-    notify("admin", "Teslim Edildi", f"{order['customer']} siparişi teslim edildi.", url="/admin_panel.html", play_sound=True)
-    notify("customer", "Siparişiniz Teslim Edildi ✅", "Siparişiniz teslim edildi. Afiyet olsun!", url="/test.html", customer_id=order['phone'], play_sound=True)
-)
+        notify("admin", "Teslim Edildi", f"{order['customer']} siparişi teslim edildi.", url="/admin_panel.html", play_sound=True)
+        notify("customer", "Siparişiniz Teslim Edildi ✅", "Siparişiniz teslim edildi. Afiyet olsun!", url="/test.html", customer_id=order['phone'], play_sound=True)
 
-# ---------- MANUEL PUSH TESTİ (opsiyonel) ----------
+    return jsonify({'id': order_id, 'status': new_status})
+
+# ---------- Manuel push testi (opsiyonel) ----------
 @app.route("/push", methods=["POST"])
 def send_push():
     try:
@@ -207,15 +206,15 @@ def send_push():
         body = payload.get("body", "Test mesajı")
         url = payload.get("url", "/admin_panel.html")
         customer_id = payload.get("customer_id")
-        notify(role, title, body, url, customer_id)
+        play_sound = payload.get("play_sound", False)
+        notify(role, title, body, url, customer_id, play_sound)
         return jsonify({"status": "bildirim gönderildi"})
     except WebPushException as e:
         return jsonify({"error": str(e)}), 500
+
 @app.route("/subscriptions", methods=["GET"])
 def get_subs():
     return jsonify(subscriptions)
 
-
 if __name__ == '__main__':
     app.run(debug=True)
-    
