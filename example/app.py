@@ -17,7 +17,7 @@ app = Flask(__name__)
 CORS(app)
 
 # ----- UTIL: ROL BAZLI BİLDİRİM FONKSİYONU -----
-def notify(role, title, body):
+def notify(role, title, body, url=None):
     print(f"notify çağrıldı! rol={role}")
     print("Mevcut aboneler:", subscriptions)
     for sub in subscriptions:
@@ -37,7 +37,7 @@ def notify(role, title, body):
                 }
                 webpush(
                     subscription_info=sub,
-                    data=json.dumps({"title": title, "body": body}),
+                    data=json.dumps({"title": title, "body": body, "url": url}),
                     vapid_private_key=VAPID_PRIVATE_KEY,
                     vapid_claims=vapid_claims
                 )
