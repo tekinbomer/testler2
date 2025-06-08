@@ -184,7 +184,11 @@ def update_status(order_id):
     elif new_status == "kurye_geldi":
         notify("admin", "Kurye Geldi", f"{order['customer']} siparişi için kurye geldi.", url="/admin_panel.html")
     elif new_status == "yolda":
-        notify("admin", "Sipariş Yolda", f"{order['customer']} siparişi yolda.", url="/admin_panel.html")
+    # Admin paneline (yöneticiye) bildirim
+    notify("admin", "Sipariş Yolda", f"{order['customer']} siparişi yolda.", url="/admin_panel.html")
+    # Customer'a (müşteriye) bildirim
+    notify("customer", "Siparişiniz Yola Çıktı 🚚", "Siparişiniz teslimata çıktı, birazdan kapınızda!", url="/")
+
     elif new_status == "teslim edildi":
         notify("admin", "Teslim Edildi", f"{order['customer']} siparişi teslim edildi.", url="/admin_panel.html")
 
