@@ -183,18 +183,22 @@ def update_status(order_id):
     conn.close()
 
     # Statüye göre push + sound kontrolü
+    if new_status == "hazırlanıyor":
+        notify("admin", "Sipariş Hazırlanıyor", f"{order['customer']} siparişi hazırlanıyor.", url="/admin_panel.html", play_sound=False)
     if new_status == "kurye_cagir":
         notify("kurye", "Kurye Görevi", f"{order['customer']} siparişi için kurye çağrıldı.", url="/kurye_takip.html", play_sound=False)
+        notify("admin", "Kurye Çağırıldı", f"{order['customer']} siparişi için kurye çağrıldı.", url="/admin_panel.html", play_sound=False)
     elif new_status == "kurye_geldi":
         notify("admin", "Kurye Geldi", f"{order['customer']} siparişi için kurye geldi.", url="/admin_panel.html", play_sound=True)
     elif new_status == "yolda":
         notify("admin", "Sipariş Yolda", f"{order['customer']} siparişi yolda.", url="/admin_panel.html", play_sound=False)
-        notify("customer", "Siparişiniz Yola Çıktı 🚚", "Siparişiniz teslimata çıktı, birazdan kapınızda!", url="/test.html", customer_id=order['phone'], play_sound=False)
+        notify("customer", "Siparişiniz Yola Çıktı 🚚", "Siparişiniz teslimata çıktı, birazdan kapınızda!", url="/test.html", customer_id=order['phone'], play_sound=True)
     elif new_status == "teslim edildi":
         notify("admin", "Teslim Edildi", f"{order['customer']} siparişi teslim edildi.", url="/admin_panel.html", play_sound=True)
         notify("customer", "Siparişiniz Teslim Edildi ✅", "Siparişiniz teslim edildi. Afiyet olsun!", url="/test.html", customer_id=order['phone'], play_sound=True)
 
     return jsonify({'id': order_id, 'status': new_status})
+
 
 # ---------- Manuel push testi (opsiyonel) ----------
 @app.route("/push", methods=["POST"])
