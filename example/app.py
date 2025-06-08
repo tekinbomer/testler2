@@ -190,7 +190,7 @@ def update_status(order_id):
         notify("admin", "Kurye Geldi", f"{order['customer']} siparişi için kurye geldi.", url="/admin_panel.html")
     elif new_status == "yolda":
         notify("admin", "Sipariş Yolda", f"{order['customer']} siparişi yolda.", url="/admin_panel.html")
-        notify("customer", "Siparişiniz Yola Çıktı 🚚", "Siparişiniz teslimata çıktı, birazdan kapınızda!", url="/", customer_id=order['phone'])
+        notify("customer", "Siparişiniz Yola Çıktı 🚚", "Siparişiniz teslimata çıktı, birazdan kapınızda!", url="/test.html", customer_id=order['phone'])
     elif new_status == "teslim edildi":
         notify("admin", "Teslim Edildi", f"{order['customer']} siparişi teslim edildi.", url="/admin_panel.html")
         notify("customer", "Siparişiniz Teslim Edildi ✅", "Siparişiniz teslim edildi. Afiyet olsun!", url="/", customer_id=order['phone'])
