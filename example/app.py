@@ -211,6 +211,11 @@ def send_push():
         return jsonify({"status": "bildirim gönderildi"})
     except WebPushException as e:
         return jsonify({"error": str(e)}), 500
+@app.route("/subscriptions", methods=["GET"])
+def get_subs():
+    return jsonify(subscriptions)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
+    
