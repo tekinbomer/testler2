@@ -1,3 +1,6 @@
+print(f"notify çağrıldı! rol={role}")
+print("Mevcut aboneler:", subscriptions)
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from db import get_db
